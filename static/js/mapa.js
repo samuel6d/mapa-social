@@ -54,6 +54,10 @@ async function iniciarMapa(user) {
   await atualizarUsuarios()
   intervaloUsers = setInterval(atualizarUsuarios, 5000)
 
+  // carrega posts ao iniciar e ao mover o mapa
+  await carregarPosts()
+  mapa.on('moveend', carregarPosts)
+
   // heartbeat: confirma que ainda está online a cada 30s
   intervaloHeartbeat = setInterval(() => {
     const centro = mapa.getCenter()
