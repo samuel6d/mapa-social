@@ -1,5 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+<script src="static/js/auth.js"></script>
+<script src="static/js/mapa.js"></script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -358,69 +360,7 @@
   })
 
   // ── FUNÇÕES DE LOGIN ────────────────────────────────
-  async function login() {
-    const email = document.getElementById('email').value
-    const senha = document.getElementById('senha').value
 
-    if (!email || !senha) {
-      mostrarMensagem('Preencha email e senha.', 'erro')
-      return
-    }
-
-    const { data, error } = await db.auth.signInWithPassword({ email, password: senha })
-
-    if (error) {
-      mostrarMensagem('Email ou senha incorretos.', 'erro')
-      return
-    }
-
-    mostrarMapa(data.user)
-  }
-
-  async function cadastrar() {
-    const email = document.getElementById('email-cad').value
-    const senha = document.getElementById('senha-cad').value
-
-    if (!email || !senha) {
-      mostrarMensagem('Preencha todos os campos.', 'erro')
-      return
-    }
-
-    if (senha.length < 6) {
-      mostrarMensagem('Senha deve ter pelo menos 6 caracteres.', 'erro')
-      return
-    }
-
-    const { error } = await db.auth.signUp({ email, password: senha })
-
-    if (error) {
-      mostrarMensagem('Erro ao criar conta: ' + error.message, 'erro')
-      return
-    }
-
-    mostrarMensagem('Conta criada! Verifique seu email para confirmar.', 'sucesso')
-  }
-
-  async function loginGoogle() {
-    await db.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin }
-    })
-  }
-
-  async function sair() {
-    // avisa o servidor que saiu
-    const { data: { user } } = await db.auth.getUser()
-    if (user) {
-      fetch(SERVIDOR + '/leave', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: user.email })
-      })
-    }
-    await db.auth.signOut()
-    location.reload()
-  }
 
   // ── MAPA ────────────────────────────────────────────
   let mapa = null
@@ -436,149 +376,7 @@
     iniciarMapa(user)
   }
 
-  function iniciarMapa(user) {
-    // cria o mapa com um fundo simples (sem mapa real por enquanto)
-    mapa = L.map('mapa', {
-      crs: L.CRS.Simple,  // coordenadas simples, não geográficas
-      minZoom: -2,
-      maxZoom: 2,
-    })
-
-    // limites do mapa: 5000x5000 pixels
-    const bounds = [[0, 0], [5000, 5000]]
-    mapa.fitBounds(bounds)
-
-    // fundo do mapa (cor sólida por enquanto)
-    L.rectangle(bounds, {
-      color: '#e8e6de',
-      fillColor: '#f5f4f0',
-      fillOpacity: 1,
-      weight: 0
-    }).addTo(mapa)
-
-    // posição inicial do usuário (centro do mapa)
-    const posInicial = { x: 2500, y: 2500 }
-    mapa.setView([posInicial.y, posInicial.x], 0)
-
-    // registra o usuário no servidor
-    registrarNaServidor(user, posInicial)
-
-    // começa a atualizar a lista de usuários online
-    atualizarUsuarios(user)
-    intervaloUsers = setInterval(() => atualizarUsuarios(user), 5000)
-
-    // ao clicar no mapa, move o usuário para lá
-    mapa.on('click', (e) => {
-      const pos = { x: Math.round(e.latlng.lng), y: Math.round(e.latlng.lat) }
-      registrarNaServidor(user, pos)
-    })
-  }
-
-  async function registrarNaServidor(user, pos) {
-    try {
-      await fetch(SERVIDOR + '/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: user.email.split('@')[0],
-          x: pos.x,
-          y: pos.y,
-          foto: ''
-        })
-      })
-    } catch (e) {
-      console.log('Servidor offline:', e)
-    }
-  }
-
-  async function atualizarUsuarios(user) {
-    try {
-      const res = await fetch(SERVIDOR + '/users')
-      const usuarios = await res.json()
-
-      // remove marcadores de quem saiu
-      for (const nome in marcadores) {
-        if (!usuarios[nome]) {
-          mapa.removeLayer(marcadores[nome])
-          delete marcadores[nome]
-        }
-      }
-
-      // adiciona ou atualiza marcadores
-      for (const nome in usuarios) {
-        const u = usuarios[nome]
-        const pos = [u.y, u.x]
-        const souEu = nome === user.email.split('@')[0]
-
-        if (marcadores[nome]) {
-          marcadores[nome].setLatLng(pos)
-        } else {
-          const icone = L.divIcon({
-            className: '',
-            html: `<div style="
-              background: ${souEu ? '#185FA5' : '#1D9E75'};
-              color: white;
-              border-radius: 50%;
-              width: 36px;
-              height: 36px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 13px;
-              font-weight: 500;
-              font-family: system-ui;
-              border: 2px solid white;
-              cursor: pointer;
-            ">${nome[0].toUpperCase()}</div>`,
-            iconSize: [36, 36],
-            iconAnchor: [18, 18]
-          })
-
-          const marcador = L.marker(pos, { icon: icone }).addTo(mapa)
-          marcador.bindPopup(`
-            <div style="font-family:system-ui;font-size:13px;min-width:120px">
-              <div style="font-weight:500;margin-bottom:4px">${nome}</div>
-              <div style="color:#6b6a65;font-size:12px">online agora</div>
-              ${!souEu ? `<button onclick="iniciarChat('${nome}')" style="
-                margin-top:8px;padding:4px 10px;font-size:11px;
-                border:0.5px solid #185FA5;border-radius:20px;
-                background:#E6F1FB;color:#185FA5;cursor:pointer;
-                font-family:system-ui;
-              ">Conversar</button>` : ''}
-            </div>
-          `)
-          marcadores[nome] = marcador
-        }
-      }
-    } catch (e) {
-      console.log('Erro ao buscar usuários:', e)
-    }
-  }
-
   // ── HELPERS ─────────────────────────────────────────
-  function mostrarMensagem(texto, tipo) {
-    const el = document.getElementById('mensagem')
-    el.textContent = texto
-    el.className = 'mensagem ' + tipo
-  }
-
-  function mostrarCadastro() {
-    document.getElementById('form-login').style.display = 'none'
-    document.getElementById('form-cadastro').style.display = 'block'
-    document.getElementById('login-sub').textContent = 'Crie sua conta gratuitamente'
-    document.getElementById('mensagem').className = 'mensagem'
-  }
-
-  function mostrarLogin() {
-    document.getElementById('form-cadastro').style.display = 'none'
-    document.getElementById('form-login').style.display = 'block'
-    document.getElementById('login-sub').textContent = 'Entre para explorar o mapa'
-    document.getElementById('mensagem').className = 'mensagem'
-  }
-
-  function abrirPerfil() {
-    alert('Tela de perfil — próxima etapa!')
-  }
 
   function iniciarChat(nome) {
     alert('Chat com ' + nome + ' — próxima etapa!')
