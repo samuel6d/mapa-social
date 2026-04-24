@@ -15,12 +15,6 @@
   <!-- Supabase — autenticação e banco -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <div class="topbar-acoes">
-  <button class="btn-topo" onclick="abrirModalPost()">+ Post</button>
-  <button class="btn-topo" onclick="abrirPerfil()">Perfil</button>
-  <button class="btn-topo" onclick="sair()">Sair</button>
-  </div>
-
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -332,6 +326,7 @@
   <div class="topbar">
     <span class="topbar-nome" id="nome-usuario">Mapa Social</span>
     <div class="topbar-acoes">
+      <button class="btn-topo" onclick="abrirModalPost()">+ Post</button>
       <button class="btn-topo" onclick="abrirPerfil()">Perfil</button>
       <button class="btn-topo" onclick="sair()">Sair</button>
     </div>
