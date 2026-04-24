@@ -1,23 +1,20 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<script src="static/js/auth.js"></script>
-<script src="static/js/mapa.js"></script>
-<script src="static/js/posts.js"></script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mapa Social</title>
-
-  <!-- Leaflet.js — biblioteca do mapa -->
+ 
+  <!-- Leaflet.js -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Supabase — autenticação e banco -->
+ 
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+ 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+ 
     :root {
       --bg: #ffffff;
       --bg2: #f5f4f0;
@@ -30,7 +27,7 @@
       --green: #0F6E56;
       --green-bg: #E1F5EE;
     }
-
+ 
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #1c1c1a;
@@ -44,14 +41,27 @@
         --green-bg: #04342C;
       }
     }
-
+ 
     body {
       font-family: 'Segoe UI', system-ui, sans-serif;
       background: var(--bg2);
       color: var(--text);
       min-height: 100vh;
     }
-
+ 
+    /* ── LOADING ───────────────────────────────────── */
+    #loading {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: var(--text2);
+      z-index: 9999;
+    }
+ 
     /* ── TELA DE LOGIN ─────────────────────────────── */
     #tela-login {
       display: flex;
@@ -60,7 +70,7 @@
       min-height: 100vh;
       padding: 24px;
     }
-
+ 
     .login-card {
       background: var(--bg);
       border: 0.5px solid var(--border);
@@ -69,20 +79,20 @@
       width: 100%;
       max-width: 380px;
     }
-
+ 
     .login-titulo {
       font-size: 20px;
       font-weight: 500;
       margin-bottom: 4px;
       color: var(--text);
     }
-
+ 
     .login-sub {
       font-size: 13px;
       color: var(--text2);
       margin-bottom: 24px;
     }
-
+ 
     .campo-label {
       font-size: 12px;
       font-weight: 500;
@@ -90,7 +100,7 @@
       display: block;
       margin-bottom: 5px;
     }
-
+ 
     .campo-input {
       width: 100%;
       padding: 10px 12px;
@@ -104,9 +114,9 @@
       transition: border-color .15s;
       font-family: inherit;
     }
-
+ 
     .campo-input:focus { border-color: var(--blue); }
-
+ 
     .btn {
       width: 100%;
       padding: 11px;
@@ -118,16 +128,16 @@
       transition: opacity .15s;
       font-family: inherit;
     }
-
-    .btn:hover { opacity: .85; }
+ 
+    .btn:hover  { opacity: .85; }
     .btn:active { transform: scale(.98); }
-
+ 
     .btn-primary {
       background: var(--blue-bg);
       color: var(--blue);
       border-color: var(--blue);
     }
-
+ 
     .btn-google {
       background: var(--bg);
       color: var(--text);
@@ -137,38 +147,30 @@
       justify-content: center;
       gap: 8px;
     }
-
+ 
     .divisor {
       display: flex;
       align-items: center;
       gap: 10px;
       margin: 16px 0;
     }
-
-    .divisor-linha {
-      flex: 1;
-      height: 0.5px;
-      background: var(--border);
-    }
-
-    .divisor-texto {
-      font-size: 12px;
-      color: var(--text2);
-    }
-
+ 
+    .divisor-linha  { flex: 1; height: 0.5px; background: var(--border); }
+    .divisor-texto  { font-size: 12px; color: var(--text2); }
+ 
     .trocar-modo {
       text-align: center;
       font-size: 12px;
       color: var(--text2);
       margin-top: 16px;
     }
-
+ 
     .trocar-modo a {
       color: var(--blue);
       cursor: pointer;
       text-decoration: none;
     }
-
+ 
     .mensagem {
       font-size: 12px;
       padding: 8px 12px;
@@ -176,30 +178,19 @@
       margin-bottom: 12px;
       display: none;
     }
-
-    .mensagem.erro {
-      background: #faece7;
-      color: #712b13;
-      display: block;
-    }
-
-    .mensagem.sucesso {
-      background: var(--green-bg);
-      color: var(--green);
-      display: block;
-    }
-
+ 
+    .mensagem.erro    { background: #faece7; color: #712b13; display: block; }
+    .mensagem.sucesso { background: var(--green-bg); color: var(--green); display: block; }
+ 
     /* ── TELA DO MAPA ──────────────────────────────── */
     #tela-mapa {
       display: none;
       height: 100vh;
       flex-direction: column;
     }
-
-    #tela-mapa.ativa {
-      display: flex;
-    }
-
+ 
+    #tela-mapa.ativa { display: flex; }
+ 
     .topbar {
       height: 48px;
       background: var(--bg);
@@ -211,18 +202,15 @@
       flex-shrink: 0;
       z-index: 1000;
     }
-
+ 
     .topbar-nome {
       font-size: 14px;
       font-weight: 500;
       color: var(--text);
     }
-
-    .topbar-acoes {
-      display: flex;
-      gap: 8px;
-    }
-
+ 
+    .topbar-acoes { display: flex; gap: 8px; }
+ 
     .btn-topo {
       padding: 6px 12px;
       font-size: 12px;
@@ -235,61 +223,71 @@
       font-family: inherit;
       transition: background .15s;
     }
-
+ 
     .btn-topo:hover { background: var(--bg2); }
-
-    #mapa-container {
-      flex: 1;
-      position: relative;
+ 
+    /* botão de post destacado */
+    .btn-topo.post {
+      background: var(--blue-bg);
+      color: var(--blue);
+      border-color: var(--blue);
     }
-
-    #mapa {
-      width: 100%;
-      height: 100%;
+ 
+    /* botão de story destacado */
+    .btn-topo.story {
+      background: #EEEDFE;
+      color: #3C3489;
+      border-color: #7F77DD;
     }
-
-    /* ── LOADING ───────────────────────────────────── */
-    #loading {
-      position: fixed;
-      inset: 0;
-      background: var(--bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      color: var(--text2);
-      z-index: 9999;
+ 
+    #mapa-container { flex: 1; position: relative; }
+    #mapa           { width: 100%; height: 100%; }
+ 
+    /* ── POPUP DO LEAFLET ──────────────────────────── */
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px !important;
+      border: 0.5px solid var(--border) !important;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.10) !important;
+      padding: 0 !important;
     }
+ 
+    .leaflet-popup-content {
+      margin: 14px !important;
+    }
+ 
+    .leaflet-popup-tip-container { display: none; }
   </style>
 </head>
 <body>
-
+ 
 <!-- Loading inicial -->
 <div id="loading">Carregando...</div>
-
+ 
 <!-- ── TELA DE LOGIN ────────────────────────────────── -->
 <div id="tela-login" style="display:none">
   <div class="login-card">
     <div class="login-titulo">Mapa Social</div>
     <div class="login-sub" id="login-sub">Entre para explorar o mapa</div>
-
+ 
     <div class="mensagem" id="mensagem"></div>
-
+ 
+    <!-- Formulário de login -->
     <div id="form-login">
       <label class="campo-label">Email</label>
       <input class="campo-input" type="email" id="email" placeholder="seu@email.com">
-
+ 
       <label class="campo-label">Senha</label>
-      <input class="campo-input" type="password" id="senha" placeholder="••••••••">
-
+      <input class="campo-input" type="password" id="senha" placeholder="••••••••"
+        onkeydown="if(event.key==='Enter') login()">
+ 
       <button class="btn btn-primary" onclick="login()">Entrar</button>
-
+ 
       <div class="divisor">
         <div class="divisor-linha"></div>
         <span class="divisor-texto">ou</span>
         <div class="divisor-linha"></div>
       </div>
-
+ 
       <button class="btn btn-google" onclick="loginGoogle()">
         <svg width="16" height="16" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -299,60 +297,64 @@
         </svg>
         Entrar com Google
       </button>
-
+ 
       <div class="trocar-modo">
         Não tem conta? <a onclick="mostrarCadastro()">Criar conta</a>
       </div>
     </div>
-
+ 
+    <!-- Formulário de cadastro -->
     <div id="form-cadastro" style="display:none">
       <label class="campo-label">Email</label>
       <input class="campo-input" type="email" id="email-cad" placeholder="seu@email.com">
-
+ 
       <label class="campo-label">Senha</label>
-      <input class="campo-input" type="password" id="senha-cad" placeholder="mínimo 6 caracteres">
-
+      <input class="campo-input" type="password" id="senha-cad"
+        placeholder="mínimo 6 caracteres"
+        onkeydown="if(event.key==='Enter') cadastrar()">
+ 
       <button class="btn btn-primary" onclick="cadastrar()">Criar conta</button>
-
+ 
       <div class="trocar-modo" style="margin-top:12px">
         Já tem conta? <a onclick="mostrarLogin()">Entrar</a>
       </div>
     </div>
   </div>
 </div>
-
+ 
 <!-- ── TELA DO MAPA ─────────────────────────────────── -->
 <div id="tela-mapa">
   <div class="topbar">
     <span class="topbar-nome" id="nome-usuario">Mapa Social</span>
     <div class="topbar-acoes">
-      <button class="btn-topo" onclick="abrirModalPost()">+ Post</button>
-      <button class="btn-topo" onclick="abrirPerfil()">Perfil</button>
-      <button class="btn-topo" onclick="sair()">Sair</button>
+      <!-- botão story separado e destacado -->
+      <button class="btn-topo story" onclick="abrirModalStory()">+ Story</button>
+      <!-- botão post normal -->
+      <button class="btn-topo post"  onclick="abrirModalPost()">+ Post</button>
+      <button class="btn-topo"       onclick="abrirPerfil()">Perfil</button>
+      <button class="btn-topo"       onclick="sair()">Sair</button>
     </div>
   </div>
   <div id="mapa-container">
     <div id="mapa"></div>
   </div>
 </div>
-
+ 
+<!-- ── SCRIPTS ───────────────────────────────────────── -->
 <script>
-  // ── CONFIGURAÇÃO SUPABASE ───────────────────────────
-  // Troque pelos seus valores do painel do Supabase
+  // ── CONFIGURAÇÃO — troque pelos seus valores ────────
   const SUPABASE_URL = 'https://fkjllotmvxsrawzavchd.supabase.co'
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZramxsb3RtdnhzcmF3emF2Y2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTA4NTEsImV4cCI6MjA5MjAyNjg1MX0.eyo_tM8MqIT07CiGLGPuIXcDdrfbcTw-dEM6ZyFWhh0'
+  const SERVIDOR     = 'http://localhost:5000' // troque pelo URL do Railway após deploy
+ 
+  // ── INICIALIZAÇÃO DO SUPABASE ───────────────────────
   const { createClient } = supabase
   const db = createClient(SUPABASE_URL, SUPABASE_KEY)
-
-  // ── URL DO SERVIDOR FLASK ───────────────────────────
-  // Enquanto desenvolve localmente use localhost
-  // Depois de fazer deploy no Railway, troque pelo URL real
-  const SERVIDOR = 'http://localhost:5000'
-
-  // ── INICIALIZAÇÃO ───────────────────────────────────
+ 
+  // ── VERIFICA SESSÃO AO CARREGAR ─────────────────────
   window.addEventListener('load', async () => {
     const { data: { session } } = await db.auth.getSession()
-
+ 
     if (session) {
       mostrarMapa(session.user)
     } else {
@@ -360,26 +362,33 @@
       document.getElementById('tela-login').style.display = 'flex'
     }
   })
-
-  // ── FUNÇÕES DE LOGIN ────────────────────────────────
-
-
-  // ── MAPA ────────────────────────────────────────────
-  
+ 
+  // ── MOSTRAR MAPA ─────────────────────────────────────
   function mostrarMapa(user) {
-    document.getElementById('loading').style.display = 'none'
+    document.getElementById('loading').style.display    = 'none'
     document.getElementById('tela-login').style.display = 'none'
     document.getElementById('tela-mapa').classList.add('ativa')
-    document.getElementById('nome-usuario').textContent = user.email.split('@')[0]
-
+    document.getElementById('nome-usuario').textContent  = user.email.split('@')[0]
+ 
+    // iniciarMapa vive no mapa.js
     iniciarMapa(user)
   }
-
-  // ── HELPERS ─────────────────────────────────────────
-
-  function iniciarChat(nome) {
-    alert('Chat com ' + nome + ' — próxima etapa!')
+ 
+  // ── ATALHO: abrir story direto (pré-seleciona tipo) ──
+  function abrirModalStory() {
+    abrirModalPost()                   // abre o modal normal
+    setTimeout(() => selecionarTipo('story'), 50) // depois seleciona "story"
   }
 </script>
+ 
+<!-- auth.js — cadastro, login, Google OAuth, perfil -->
+<script src="static/js/auth.js"></script>
+ 
+<!-- mapa.js — Leaflet, avatares, heartbeat -->
+<script src="static/js/mapa.js"></script>
+ 
+<!-- posts.js — cards de postagem, stories 48h -->
+<script src="static/js/posts.js"></script>
+ 
 </body>
 </html>
