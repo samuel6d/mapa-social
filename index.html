@@ -379,6 +379,15 @@
     abrirModalPost()                   // abre o modal normal
     setTimeout(() => selecionarTipo('story'), 50) // depois seleciona "story"
   }
+
+  function mostrarToast(texto, duracao = 3000) {
+    const t = document.getElementById('toast')
+    t.textContent = texto
+    t.classList.add('visivel')
+    setTimeout(() => t.classList.remove('visivel'), duracao)
+  }
+  // registra globalmente para o chat.js usar
+  window._toast = mostrarToast
 </script>
  
 <!-- auth.js — cadastro, login, Google OAuth, perfil -->

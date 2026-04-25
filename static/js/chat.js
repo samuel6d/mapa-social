@@ -30,9 +30,20 @@ function conectarWS() {
   console.log('chat: conectando como', nomeLocal)
   ws = new WebSocket(url)
 
-  ws.onopen    = () => console.log('chat: ws conectado')
+  ws.onopen = () => {
+    console.log('chat: ws conectado')
+    // ping a cada 25s para manter a conexão viva no Railway
+    if (window._wsPingInterval) clearInterval(window._wsPingInterval)
+    window._wsPingInterval = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ tipo: 'ping' }))
+      }
+    }, 25000)
+  }
+
   ws.onerror   = (e) => console.error('chat: ws erro', e)
-  ws.onclose   = (e) => {
+  ws.onclose = (e) => {
+    clearInterval(window._wsPingInterval)
     console.log('chat: ws fechado, reconectando...', e.code)
     setTimeout(conectarWS, 3000)
   }
@@ -340,4 +351,31 @@ function limparConexao(nomeRemoto) {
   delete conexoesPeer[nomeRemoto]
   delete canaisChat[nomeRemoto]
   pararVoz(nomeRemoto)
+}
+
+//--
+// fallback local caso o index.html ainda não tenha carregado
+function mostrarToast(texto, duracao = 3000) {
+  // usa a função global se existir
+  if (window._toast) {
+    window._toast(texto, duracao)
+    return
+  }
+  let t = document.getElementById('toast')
+  if (!t) {
+    t = document.createElement('div')
+    t.id = 'toast'
+    t.style.cssText = `
+      position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+      background:#1a1a18;color:white;font-size:13px;
+      padding:9px 18px;border-radius:20px;z-index:99999;
+      font-family:system-ui;pointer-events:none;
+      opacity:0;transition:opacity .25s;white-space:nowrap;
+      box-shadow:0 4px 20px rgba(0,0,0,0.15);
+    `
+    document.body.appendChild(t)
+  }
+  t.textContent = texto
+  t.style.opacity = '1'
+  setTimeout(() => { t.style.opacity = '0' }, duracao)
 }
