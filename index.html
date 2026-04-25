@@ -4,357 +4,393 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mapa Social</title>
- 
-  <!-- Leaflet.js -->
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
- 
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
- 
+
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
- 
+
     :root {
       --bg: #ffffff;
       --bg2: #f5f4f0;
+      --bg3: #f0ede8;
       --text: #1a1a18;
       --text2: #6b6a65;
-      --border: rgba(0,0,0,0.10);
+      --text3: #9c9a92;
+      --border: rgba(0,0,0,0.08);
+      --border2: rgba(0,0,0,0.14);
+      --blue: #2563EB;
+      --blue-bg: #EFF6FF;
+      --green: #059669;
+      --green-bg: #ECFDF5;
+      --red: #DC2626;
+      --red-bg: #FEF2F2;
       --radius: 10px;
-      --blue: #185FA5;
-      --blue-bg: #E6F1FB;
-      --green: #0F6E56;
-      --green-bg: #E1F5EE;
+      --radius-lg: 14px;
+      --font: 'Segoe UI', system-ui, sans-serif;
     }
- 
+
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #1c1c1a;
-        --bg2: #242422;
+        --bg: #18181a;
+        --bg2: #222224;
+        --bg3: #2a2a2c;
         --text: #e8e6de;
         --text2: #9c9a92;
-        --border: rgba(255,255,255,0.08);
-        --blue: #85B7EB;
-        --blue-bg: #042C53;
-        --green: #5DCAA5;
-        --green-bg: #04342C;
+        --text3: #5f5e5a;
+        --border: rgba(255,255,255,0.07);
+        --border2: rgba(255,255,255,0.13);
+        --blue: #60A5FA;
+        --blue-bg: #1e3a5f;
+        --green: #34d399;
+        --green-bg: #064e3b;
+        --red: #f87171;
+        --red-bg: #450a0a;
       }
     }
- 
+
     body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: var(--font);
       background: var(--bg2);
       color: var(--text);
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
- 
-    /* ── LOADING ───────────────────────────────────── */
+
+    /* ── LOADING ─────────────────────────────────────── */
     #loading {
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0;
       background: var(--bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      color: var(--text2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; color: var(--text2);
       z-index: 9999;
     }
- 
-    /* ── TELA DE LOGIN ─────────────────────────────── */
+
+    /* ── LOGIN ───────────────────────────────────────── */
     #tela-login {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 24px;
+      align-items: center; justify-content: center;
+      min-height: 100vh; padding: 24px;
     }
- 
+
     .login-card {
       background: var(--bg);
-      border: 0.5px solid var(--border);
-      border-radius: 16px;
-      padding: 32px;
-      width: 100%;
-      max-width: 380px;
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-lg);
+      padding: 32px; width: 100%; max-width: 380px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     }
- 
+
     .login-titulo {
-      font-size: 20px;
-      font-weight: 500;
-      margin-bottom: 4px;
-      color: var(--text);
+      font-size: 20px; font-weight: 500;
+      margin-bottom: 4px; color: var(--text);
+      display: flex; align-items: center; gap: 8px;
     }
- 
+
+    .logo-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); flex-shrink: 0;
+    }
+
     .login-sub {
-      font-size: 13px;
-      color: var(--text2);
-      margin-bottom: 24px;
+      font-size: 13px; color: var(--text2); margin-bottom: 24px;
     }
- 
+
     .campo-label {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text2);
-      display: block;
-      margin-bottom: 5px;
+      font-size: 11px; font-weight: 500; color: var(--text2);
+      display: block; margin-bottom: 5px;
+      text-transform: uppercase; letter-spacing: .04em;
     }
- 
+
     .campo-input {
-      width: 100%;
-      padding: 10px 12px;
-      font-size: 14px;
-      border: 0.5px solid var(--border);
+      width: 100%; padding: 10px 12px; font-size: 13px;
+      border: 0.5px solid var(--border2);
       border-radius: var(--radius);
-      background: var(--bg);
-      color: var(--text);
-      margin-bottom: 14px;
-      outline: none;
-      transition: border-color .15s;
-      font-family: inherit;
+      background: var(--bg); color: var(--text);
+      margin-bottom: 14px; outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      font-family: var(--font);
     }
- 
-    .campo-input:focus { border-color: var(--blue); }
- 
+
+    .campo-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+
     .btn {
-      width: 100%;
-      padding: 11px;
-      font-size: 14px;
-      font-weight: 500;
-      border-radius: var(--radius);
-      border: 0.5px solid var(--border);
-      cursor: pointer;
-      transition: opacity .15s;
-      font-family: inherit;
+      width: 100%; padding: 11px; font-size: 13px; font-weight: 500;
+      border-radius: var(--radius); border: 0.5px solid var(--border2);
+      cursor: pointer; transition: all .15s; font-family: var(--font);
     }
- 
-    .btn:hover  { opacity: .85; }
+
+    .btn:hover  { opacity: .88; }
     .btn:active { transform: scale(.98); }
- 
+
     .btn-primary {
-      background: var(--blue-bg);
-      color: var(--blue);
+      background: var(--blue-bg); color: var(--blue);
       border-color: var(--blue);
     }
- 
+
+    .btn-primary:hover { background: var(--blue); color: white; }
+
     .btn-google {
-      background: var(--bg);
-      color: var(--text);
-      margin-top: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      background: var(--bg); color: var(--text); margin-top: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
     }
- 
+
+    .btn-google:hover { background: var(--bg2); }
+
     .divisor {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 16px 0;
+      display: flex; align-items: center; gap: 10px; margin: 16px 0;
     }
- 
-    .divisor-linha  { flex: 1; height: 0.5px; background: var(--border); }
-    .divisor-texto  { font-size: 12px; color: var(--text2); }
- 
+
+    .divisor-linha { flex: 1; height: 0.5px; background: var(--border2); }
+    .divisor-texto { font-size: 11px; color: var(--text3); }
+
     .trocar-modo {
-      text-align: center;
-      font-size: 12px;
-      color: var(--text2);
-      margin-top: 16px;
+      text-align: center; font-size: 12px;
+      color: var(--text2); margin-top: 16px;
     }
- 
+
     .trocar-modo a {
-      color: var(--blue);
-      cursor: pointer;
-      text-decoration: none;
+      color: var(--blue); cursor: pointer;
+      text-decoration: none; font-weight: 500;
     }
- 
+
     .mensagem {
-      font-size: 12px;
-      padding: 8px 12px;
-      border-radius: var(--radius);
-      margin-bottom: 12px;
-      display: none;
+      font-size: 12px; padding: 9px 12px;
+      border-radius: var(--radius); margin-bottom: 12px;
+      display: none; line-height: 1.5;
     }
- 
-    .mensagem.erro    { background: #faece7; color: #712b13; display: block; }
-    .mensagem.sucesso { background: var(--green-bg); color: var(--green); display: block; }
- 
-    /* ── TELA DO MAPA ──────────────────────────────── */
+
+    .mensagem.erro {
+      background: var(--red-bg); color: var(--red);
+      border: 0.5px solid rgba(220,38,38,.2); display: block;
+    }
+
+    .mensagem.sucesso {
+      background: var(--green-bg); color: var(--green);
+      border: 0.5px solid rgba(5,150,105,.2); display: block;
+    }
+
+    /* ── TOPBAR ──────────────────────────────────────── */
     #tela-mapa {
-      display: none;
-      height: 100vh;
-      flex-direction: column;
+      display: none; height: 100vh; flex-direction: column;
     }
- 
+
     #tela-mapa.ativa { display: flex; }
- 
+
     .topbar {
-      height: 48px;
-      background: var(--bg);
+      height: 52px; background: var(--bg);
       border-bottom: 0.5px solid var(--border);
-      display: flex;
-      align-items: center;
+      display: flex; align-items: center;
       justify-content: space-between;
-      padding: 0 16px;
-      flex-shrink: 0;
-      z-index: 1000;
+      padding: 0 18px; flex-shrink: 0; z-index: 1000;
     }
- 
-    .topbar-nome {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text);
+
+    .topbar-logo {
+      font-size: 14px; font-weight: 500;
+      color: var(--text); display: flex; align-items: center; gap: 7px;
     }
- 
-    .topbar-acoes { display: flex; gap: 8px; }
- 
+
+    .topbar-acoes { display: flex; gap: 6px; align-items: center; }
+
     .btn-topo {
-      padding: 6px 12px;
-      font-size: 12px;
-      font-weight: 500;
-      border-radius: 20px;
-      border: 0.5px solid var(--border);
-      background: none;
-      color: var(--text2);
-      cursor: pointer;
-      font-family: inherit;
-      transition: background .15s;
+      padding: 6px 14px; font-size: 12px; font-weight: 500;
+      border-radius: 20px; border: 0.5px solid var(--border2);
+      background: none; color: var(--text2); cursor: pointer;
+      font-family: var(--font); transition: all .15s;
     }
- 
-    .btn-topo:hover { background: var(--bg2); }
- 
-    /* botão de post destacado */
-    .btn-topo.post {
-      background: var(--blue-bg);
-      color: var(--blue);
+
+    .btn-topo:hover { background: var(--bg2); color: var(--text); }
+
+    .btn-topo-accent {
+      background: var(--blue-bg); color: var(--blue);
       border-color: var(--blue);
     }
- 
-    /* botão de story destacado */
-    .btn-topo.story {
-      background: #EEEDFE;
-      color: #3C3489;
-      border-color: #7F77DD;
-    }
- 
+
+    .btn-topo-accent:hover { background: var(--blue); color: white; }
+
+    /* ── MAPA ────────────────────────────────────────── */
     #mapa-container { flex: 1; position: relative; }
-    #mapa           { width: 100%; height: 100%; }
- 
-    /* ── POPUP DO LEAFLET ──────────────────────────── */
+    #mapa { width: 100%; height: 100%; }
+
+    .online-pill {
+      position: absolute; bottom: 20px; left: 20px;
+      background: var(--bg); border: 0.5px solid var(--border2);
+      border-radius: 20px; padding: 7px 14px;
+      font-size: 12px; font-weight: 500; color: var(--text2);
+      display: flex; align-items: center; gap: 7px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      z-index: 500; pointer-events: none;
+    }
+
+    .online-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green);
+    }
+
+    /* ── LEAFLET POPUP ───────────────────────────────── */
     .leaflet-popup-content-wrapper {
-      border-radius: 12px !important;
-      border: 0.5px solid var(--border) !important;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.10) !important;
+      border-radius: var(--radius-lg) !important;
+      border: 0.5px solid var(--border2) !important;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.10) !important;
       padding: 0 !important;
     }
- 
+
     .leaflet-popup-content {
-      margin: 14px !important;
+      margin: 0 !important;
+      font-family: var(--font) !important;
     }
- 
+
     .leaflet-popup-tip-container { display: none; }
+
+    /* ── MODAIS ──────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.35);
+      display: none; align-items: center; justify-content: center;
+      padding: 24px; backdrop-filter: blur(2px);
+    }
+
+    .modal-overlay.aberto { display: flex; }
+
+    .modal-box {
+      background: var(--bg); border-radius: var(--radius-lg);
+      padding: 24px; width: 100%; max-width: 400px;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.10);
+      border: 0.5px solid var(--border2);
+      animation: slideUp .2s ease;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal-header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 20px;
+    }
+
+    .modal-titulo { font-size: 15px; font-weight: 500; color: var(--text); }
+
+    .modal-fechar {
+      background: none; border: none; font-size: 20px;
+      color: var(--text2); cursor: pointer; line-height: 1; padding: 0 2px;
+    }
+
+    .modal-fechar:hover { color: var(--text); }
   </style>
 </head>
 <body>
- 
-<!-- Loading inicial -->
-<div id="loading">Carregando...</div>
- 
-<!-- ── TELA DE LOGIN ────────────────────────────────── -->
+
+<!-- LOADING -->
+<div id="loading">carregando...</div>
+
+<!-- TELA DE LOGIN -->
 <div id="tela-login" style="display:none">
   <div class="login-card">
-    <div class="login-titulo">Mapa Social</div>
-    <div class="login-sub" id="login-sub">Entre para explorar o mapa</div>
- 
+
+    <div class="login-titulo">
+      <span class="logo-dot"></span>
+      mapa social
+    </div>
+    <div class="login-sub" id="login-sub">entre para explorar o mapa</div>
+
     <div class="mensagem" id="mensagem"></div>
- 
-    <!-- Formulário de login -->
+
     <div id="form-login">
-      <label class="campo-label">Email</label>
-      <input class="campo-input" type="email" id="email" placeholder="seu@email.com">
- 
-      <label class="campo-label">Senha</label>
-      <input class="campo-input" type="password" id="senha" placeholder="••••••••"
+      <label class="campo-label">email</label>
+      <input class="campo-input" type="email" id="email"
+        placeholder="seu@email.com"
         onkeydown="if(event.key==='Enter') login()">
- 
-      <button class="btn btn-primary" onclick="login()">Entrar</button>
- 
+
+      <label class="campo-label">senha</label>
+      <input class="campo-input" type="password" id="senha"
+        placeholder="••••••••"
+        onkeydown="if(event.key==='Enter') login()">
+
+      <button class="btn btn-primary" onclick="login()">entrar</button>
+
       <div class="divisor">
         <div class="divisor-linha"></div>
         <span class="divisor-texto">ou</span>
         <div class="divisor-linha"></div>
       </div>
- 
+
       <button class="btn btn-google" onclick="loginGoogle()">
-        <svg width="16" height="16" viewBox="0 0 24 24">
+        <svg width="16" height="16" viewBox="0 0 24 24" style="flex-shrink:0">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
         </svg>
-        Entrar com Google
+        entrar com google
       </button>
- 
+
       <div class="trocar-modo">
-        Não tem conta? <a onclick="mostrarCadastro()">Criar conta</a>
+        não tem conta? <a onclick="mostrarCadastro()">criar conta</a>
       </div>
     </div>
- 
-    <!-- Formulário de cadastro -->
+
     <div id="form-cadastro" style="display:none">
-      <label class="campo-label">Email</label>
-      <input class="campo-input" type="email" id="email-cad" placeholder="seu@email.com">
- 
-      <label class="campo-label">Senha</label>
+      <label class="campo-label">email</label>
+      <input class="campo-input" type="email" id="email-cad"
+        placeholder="seu@email.com">
+
+      <label class="campo-label">senha</label>
       <input class="campo-input" type="password" id="senha-cad"
-        placeholder="mínimo 6 caracteres"
-        onkeydown="if(event.key==='Enter') cadastrar()">
- 
-      <button class="btn btn-primary" onclick="cadastrar()">Criar conta</button>
- 
+        placeholder="mínimo 6 caracteres">
+
+      <button class="btn btn-primary" onclick="cadastrar()">criar conta</button>
+
       <div class="trocar-modo" style="margin-top:12px">
-        Já tem conta? <a onclick="mostrarLogin()">Entrar</a>
+        já tem conta? <a onclick="mostrarLogin()">entrar</a>
       </div>
     </div>
+
   </div>
 </div>
- 
-<!-- ── TELA DO MAPA ─────────────────────────────────── -->
+
+<!-- TELA DO MAPA -->
 <div id="tela-mapa">
   <div class="topbar">
-    <span class="topbar-nome" id="nome-usuario">Mapa Social</span>
+    <div class="topbar-logo">
+      <span class="logo-dot"></span>
+      mapa social
+    </div>
     <div class="topbar-acoes">
-      <!-- botão story separado e destacado -->
-      <button class="btn-topo story" onclick="abrirModalStory()">+ Story</button>
-      <!-- botão post normal -->
-      <button class="btn-topo post"  onclick="abrirModalPost()">+ Post</button>
-      <button class="btn-topo"       onclick="abrirPerfil()">Perfil</button>
-      <button class="btn-topo"       onclick="sair()">Sair</button>
+      <button class="btn-topo btn-topo-accent" onclick="abrirModalPost()">+ post</button>
+      <button class="btn-topo" onclick="abrirPerfil()">perfil</button>
+      <button class="btn-topo" onclick="sair()">sair</button>
     </div>
   </div>
   <div id="mapa-container">
     <div id="mapa"></div>
+    <div class="online-pill" id="online-pill" style="display:none">
+      <span class="online-dot"></span>
+      <span id="online-count">0 online</span>
+    </div>
   </div>
 </div>
- 
-<!-- ── SCRIPTS ───────────────────────────────────────── -->
+
 <script>
-  // ── CONFIGURAÇÃO — troque pelos seus valores ────────
-  const SUPABASE_URL = 'https://fkjllotmvxsrawzavchd.supabase.co'
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZramxsb3RtdnhzcmF3emF2Y2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTA4NTEsImV4cCI6MjA5MjAyNjg1MX0.eyo_tM8MqIT07CiGLGPuIXcDdrfbcTw-dEM6ZyFWhh0'
-  const SERVIDOR     = 'https://mapa-social.up.railway.app' // troque pelo URL do Railway após deploy
- 
-  // ── INICIALIZAÇÃO DO SUPABASE ───────────────────────
+  // ── CONFIGURAÇÃO ──────────────────────────────────────
+  // Troque pelos seus valores reais
+  const SUPABASE_URL = 'https://SEU-PROJETO.supabase.co'
+  const SUPABASE_KEY = 'SUA-ANON-KEY'
+  const SERVIDOR     = 'https://SUA-URL.up.railway.app'
+
   const { createClient } = supabase
   const db = createClient(SUPABASE_URL, SUPABASE_KEY)
- 
-  // ── VERIFICA SESSÃO AO CARREGAR ─────────────────────
+
+  // ── INICIALIZAÇÃO ─────────────────────────────────────
   window.addEventListener('load', async () => {
     const { data: { session } } = await db.auth.getSession()
- 
     if (session) {
       mostrarMapa(session.user)
     } else {
@@ -362,44 +398,44 @@
       document.getElementById('tela-login').style.display = 'flex'
     }
   })
- 
-  // ── MOSTRAR MAPA ─────────────────────────────────────
-  function mostrarMapa(user) {
-    document.getElementById('loading').style.display    = 'none'
+
+  // ── MOSTRAR MAPA ──────────────────────────────────────
+  async function mostrarMapa(user) {
+    document.getElementById('loading').style.display = 'none'
     document.getElementById('tela-login').style.display = 'none'
     document.getElementById('tela-mapa').classList.add('ativa')
-    document.getElementById('nome-usuario').textContent  = user.email.split('@')[0]
- 
-    // iniciarMapa vive no mapa.js
-    iniciarMapa(user)
-  }
- 
-  // ── ATALHO: abrir story direto (pré-seleciona tipo) ──
-  function abrirModalStory() {
-    abrirModalPost()                   // abre o modal normal
-    setTimeout(() => selecionarTipo('story'), 50) // depois seleciona "story"
+    await iniciarMapa(user)
+    await iniciarSignaling()
   }
 
-  function mostrarToast(texto, duracao = 3000) {
-    const t = document.getElementById('toast')
-    t.textContent = texto
-    t.classList.add('visivel')
-    setTimeout(() => t.classList.remove('visivel'), duracao)
+  // ── MENSAGEM DE LOGIN ─────────────────────────────────
+  function mostrarMensagem(texto, tipo) {
+    const el = document.getElementById('mensagem')
+    if (!el) return
+    el.textContent = texto
+    el.className = 'mensagem ' + tipo
   }
-  // registra globalmente para o chat.js usar
-  window._toast = mostrarToast
+
+  function mostrarCadastro() {
+    document.getElementById('form-login').style.display = 'none'
+    document.getElementById('form-cadastro').style.display = 'block'
+    document.getElementById('login-sub').textContent = 'crie sua conta gratuitamente'
+    document.getElementById('mensagem').className = 'mensagem'
+  }
+
+  function mostrarLogin() {
+    document.getElementById('form-cadastro').style.display = 'none'
+    document.getElementById('form-login').style.display = 'block'
+    document.getElementById('login-sub').textContent = 'entre para explorar o mapa'
+    document.getElementById('mensagem').className = 'mensagem'
+  }
 </script>
- 
-<!-- auth.js — cadastro, login, Google OAuth, perfil -->
-<script src="static/js/auth.js"></script>
- 
-<!-- mapa.js — Leaflet, avatares, heartbeat -->
-<script src="static/js/mapa.js"></script>
- 
-<!-- posts.js — cards de postagem, stories 48h -->
-<script src="static/js/posts.js"></script>
 
+<!-- scripts externos — carregados depois do HTML -->
+<script src="static/js/auth.js"></script>
+<script src="static/js/mapa.js"></script>
+<script src="static/js/posts.js"></script>
 <script src="static/js/chat.js"></script>
- 
+
 </body>
 </html>
