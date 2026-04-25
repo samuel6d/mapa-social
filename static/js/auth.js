@@ -54,7 +54,7 @@ async function loginGoogle() {
   await db.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin
+      redirectTo: "https://samuel6d.github.io/mapa-social/"
     }
   })
 }
