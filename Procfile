@@ -1,1 +1,1 @@
-web: gunicorn --worker-class flask_sock.worker.Worker servidor:app --bind 0.0.0.0:$PORT
+web: gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 --bind 0.0.0.0:$PORT servidor:app
