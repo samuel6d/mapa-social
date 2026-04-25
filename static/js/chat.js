@@ -18,7 +18,10 @@ async function iniciarSignaling() {
   nomeLocal = perfil?.nome || user.email.split('@')[0]
 
   // conecta ao WebSocket do servidor Flask
-  const url = SERVIDOR.replace('http', 'ws') + '/ws/' + encodeURIComponent(nomeLocal)
+  const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
+  const host = location.host
+
+  const url = `${protocol}://${host}/ws/${encodeURIComponent(nomeLocal)}`
   ws = new WebSocket(url)
 
   ws.onopen = () => console.log('Sinalização conectada')
