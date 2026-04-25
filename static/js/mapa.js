@@ -52,7 +52,7 @@ async function iniciarMapa(user) {
 
   // atualiza lista de usuários a cada 5 segundos
   await atualizarUsuarios()
-  intervaloUsers = setInterval(atualizarUsuarios, 5000)
+  intervaloUsers = setInterval(atualizarUsuarios, 1000)
 
   // carrega posts ao iniciar e ao mover o mapa
   await carregarPosts()
@@ -63,6 +63,9 @@ async function iniciarMapa(user) {
     const centro = mapa.getCenter()
     registrarPosicao(Math.round(centro.lng), Math.round(centro.lat))
   }, 30000)
+
+  // inicia sinalização WebRTC
+  await iniciarSignaling()
 
   // ao clicar no mapa, move o avatar do usuário
   mapa.on('click', async (e) => {
@@ -260,14 +263,4 @@ function desenharGrade() {
 function pararMapa() {
   if (intervaloUsers) clearInterval(intervaloUsers)
   if (intervaloHeartbeat) clearInterval(intervaloHeartbeat)
-}
-
-// ── PLACEHOLDERS (implementados no chat.js) ───────────
-
-function iniciarChat(nome) {
-  alert('Chat com ' + nome + ' — vem na próxima etapa!')
-}
-
-function iniciarVoz(nome) {
-  alert('Voz com ' + nome + ' — vem na próxima etapa!')
 }
