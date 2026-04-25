@@ -13,8 +13,8 @@ app = Flask(__name__)
 CORS(app, origins="*")
 sock = Sock(app)
 
-usuarios  = {}   # { nome: { x, y, foto, visto } }
-conexoes  = {}   # { nome: ws }
+usuarios = {}  # { nome: { x, y, foto, visto } }
+conexoes = {}  # { nome: ws }
 
 # ── HTTP ──────────────────────────────────────────────
 
@@ -29,9 +29,9 @@ def registrar():
         return jsonify({"erro": "nome obrigatorio"}), 400
     nome = dados["nome"].strip()
     usuarios[nome] = {
-        "x":    dados.get("x", 2500),
-        "y":    dados.get("y", 2500),
-        "foto": dados.get("foto", ""),
+        "x":     dados.get("x", 2500),
+        "y":     dados.get("y", 2500),
+        "foto":  dados.get("foto", ""),
         "visto": time.time()
     }
     log.info(f"registrado: {nome}")
@@ -57,28 +57,29 @@ def sair():
 def websocket(ws, nome):
     nome = nome.strip()
     conexoes[nome] = ws
-    log.info(f"ws: {nome} conectou | online: {list(conexoes.keys())}")
+    log.info(f"ws conectou: {nome} | online: {list(conexoes.keys())}")
 
     try:
         while True:
-            msg = ws.receive(timeout=45)
+            # timeout de 30s — se não receber nada, envia ping
+            msg = ws.receive(timeout=30)
 
-            # timeout — mantém vivo com ping
             if msg is None:
                 try:
                     ws.send(json.dumps({"tipo": "ping"}))
+                    continue
                 except Exception:
                     break
-                continue
 
             try:
                 dados = json.loads(msg)
-            except json.JSONDecodeError:
+            except Exception:
                 continue
 
             tipo    = dados.get("tipo", "")
             destino = dados.get("para", "").strip()
 
+            # ignora pings
             if tipo == "ping":
                 continue
 
@@ -88,16 +89,16 @@ def websocket(ws, nome):
                 try:
                     conexoes[destino].send(msg)
                 except Exception as e:
-                    log.warning(f"erro ao repassar para {destino}: {e}")
+                    log.warning(f"erro repassando para {destino}: {e}")
                     conexoes.pop(destino, None)
             else:
                 log.warning(f"destino nao encontrado: '{destino}' | online: {list(conexoes.keys())}")
 
     except Exception as e:
-        log.warning(f"ws [{nome}] encerrou: {e}")
+        log.warning(f"ws [{nome}] erro: {e}")
     finally:
         conexoes.pop(nome, None)
-        log.info(f"ws: {nome} desconectou")
+        log.info(f"ws desconectou: {nome}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=5000)
