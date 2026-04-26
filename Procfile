@@ -1,1 +1,1 @@
-web: gunicorn --worker-class sync --workers 1 --bind 0.0.0.0:$PORT --timeout 120 servidor:app
+gunicorn --worker-class eventlet --workers 1 --bind 0.0.0.0:$PORT servidor:app

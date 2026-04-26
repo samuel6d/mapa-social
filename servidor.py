@@ -1,17 +1,20 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from simple_websocket import Server, ConnectionClosed
-import time, json, logging, threading
+from flask_sock import Sock
+import time, json, logging
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app, origins="*")
+sock = Sock(app)
 
-usuarios = {}   # { nome: { x, y, foto, visto } }
-conexoes = {}   # { nome: ws }
-lock     = threading.Lock()
+usuarios = {}  # { nome: { x, y, foto, visto } }
+conexoes = {}  # { nome: ws }
 
 # ── HTTP ──────────────────────────────────────────────
 
@@ -25,48 +28,48 @@ def registrar():
     if not dados or "nome" not in dados:
         return jsonify({"erro": "nome obrigatorio"}), 400
     nome = dados["nome"].strip()
-    with lock:
-        usuarios[nome] = {
-            "x":     dados.get("x", 2500),
-            "y":     dados.get("y", 2500),
-            "foto":  dados.get("foto", ""),
-            "visto": time.time()
-        }
+    usuarios[nome] = {
+        "x":     dados.get("x", 2500),
+        "y":     dados.get("y", 2500),
+        "foto":  dados.get("foto", ""),
+        "visto": time.time()
+    }
     log.info(f"registrado: {nome}")
     return jsonify({"ok": True})
 
 @app.route("/users", methods=["GET"])
 def listar():
-    agora = time.time()
-    with lock:
-        ativos = {n: i for n, i in usuarios.items() if agora - i["visto"] < 120}
+    agora  = time.time()
+    ativos = {n: i for n, i in usuarios.items() if agora - i["visto"] < 120}
     return jsonify(ativos)
 
 @app.route("/leave", methods=["DELETE"])
 def sair():
     dados = request.get_json()
     nome  = dados.get("nome", "") if dados else ""
-    with lock:
-        usuarios.pop(nome, None)
+    usuarios.pop(nome, None)
     log.info(f"saiu: {nome}")
     return jsonify({"ok": True})
 
 # ── WEBSOCKET ─────────────────────────────────────────
 
-@app.route("/ws/<nome>")
-def websocket(nome):
+@sock.route("/ws/<nome>")
+def websocket(ws, nome):
     nome = nome.strip()
-    ws   = Server.accept(request.environ)
-
-    with lock:
-        conexoes[nome] = ws
+    conexoes[nome] = ws
     log.info(f"ws conectou: {nome} | online: {list(conexoes.keys())}")
 
     try:
         while True:
-            msg = ws.receive()
+            msg = ws.receive(timeout=30)
+
+            # timeout — envia ping para manter vivo
             if msg is None:
-                break
+                try:
+                    ws.send(json.dumps({"tipo": "ping"}))
+                    continue
+                except Exception:
+                    break
 
             try:
                 dados   = json.loads(msg)
@@ -80,32 +83,24 @@ def websocket(nome):
 
             log.info(f"sinal: {nome} → {destino} [{tipo}]")
 
-            with lock:
-                dest_ws = conexoes.get(destino)
-
-            if dest_ws:
+            if destino and destino in conexoes:
                 try:
-                    dest_ws.send(msg)
+                    conexoes[destino].send(msg)
+                    log.info(f"repassado para: {destino}")
                 except Exception as e:
                     log.warning(f"erro repassando para {destino}: {e}")
-                    with lock:
-                        conexoes.pop(destino, None)
+                    conexoes.pop(destino, None)
             else:
                 log.warning(
                     f"destino nao encontrado: '{destino}' "
                     f"| online: {list(conexoes.keys())}"
                 )
 
-    except ConnectionClosed:
-        log.info(f"ws desconectou: {nome}")
     except Exception as e:
-        log.warning(f"ws [{nome}] erro: {e}")
+        log.warning(f"ws [{nome}] encerrou: {e}")
     finally:
-        with lock:
-            conexoes.pop(nome, None)
-        log.info(f"ws removido: {nome}")
-
-    return ""
+        conexoes.pop(nome, None)
+        log.info(f"ws desconectou: {nome}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=5000)
