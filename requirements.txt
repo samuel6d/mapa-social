@@ -1,8 +1,6 @@
 flask
 flask-cors
-flask-sock
+simple-websocket
 gunicorn
-gevent
-gevent-websocket
 python-dotenv
 requests
