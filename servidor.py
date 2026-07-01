@@ -51,15 +51,17 @@ def sair():
     return jsonify({"ok": True})
 
 # ── WEBSOCKET ─────────────────────────────────────────
+# O geventwebsocket injeta o objeto ws em request.environ["wsgi.websocket"]
+# apenas quando a requisição é um upgrade WebSocket real.
+# Quando acessado via HTTP normal, ws será None.
 
 @app.route("/ws/<nome>")
 def websocket(nome):
     ws = request.environ.get("wsgi.websocket")
 
-    # se não for WebSocket, retorna erro
     if not ws:
-        log.warning(f"requisicao nao-WebSocket para /ws/{nome}")
-        return jsonify({"erro": "WebSocket necessario"}), 400
+        # requisição HTTP normal — não é WebSocket
+        return "use WebSocket", 200
 
     nome = nome.strip()
     conexoes[nome] = ws
@@ -67,15 +69,13 @@ def websocket(nome):
 
     try:
         while True:
-            # aguarda mensagem do cliente
             msg = ws.receive()
 
-            # None = cliente desconectou
             if msg is None:
+                # cliente desconectou normalmente
                 break
 
-            # ignora mensagens vazias
-            if not msg:
+            if not msg.strip():
                 continue
 
             try:
@@ -85,34 +85,28 @@ def websocket(nome):
             except json.JSONDecodeError:
                 continue
 
-            # ignora pings
             if tipo == "ping":
-                try:
-                    ws.send(json.dumps({"tipo": "pong"}))
-                except WebSocketError:
-                    break
                 continue
 
             log.info(f"sinal: {nome} -> {destino} [{tipo}]")
 
-            # repassa mensagem para o destinatario
             if destino and destino in conexoes:
                 try:
                     conexoes[destino].send(msg)
                     log.info(f"repassado para: {destino}")
-                except WebSocketError as e:
+                except Exception as e:
                     log.warning(f"erro ao repassar para {destino}: {e}")
                     conexoes.pop(destino, None)
             else:
                 log.warning(
-                    f"destino nao encontrado: '{destino}' "
+                    f"destino: '{destino}' nao encontrado "
                     f"| online: {list(conexoes.keys())}"
                 )
 
     except WebSocketError as e:
-        log.warning(f"ws [{nome}] WebSocketError: {e}")
-    except Exception as e:
         log.warning(f"ws [{nome}] erro: {e}")
+    except Exception as e:
+        log.warning(f"ws [{nome}] excecao: {e}")
     finally:
         conexoes.pop(nome, None)
         log.info(f"ws desconectou: {nome}")

@@ -52,16 +52,15 @@ async function iniciarSignaling() {
 }
 
 function conectarWS() {
-  // remove barra do final do SERVIDOR antes de montar URL
-  const base = SERVIDOR.replace(/\/+$/, '').replace(/^http/, 'ws')
+  // converte https:// para wss:// e remove barras do final
+  const base = SERVIDOR.replace(/\/+$/, '').replace(/^https/, 'wss').replace(/^http/, 'ws')
   const url  = `${base}/ws/${encodeURIComponent(nomeLocal)}`
 
-  console.log('chat: conectando como', nomeLocal)
+  console.log('chat: conectando como', nomeLocal, '| url:', url)
   ws = new WebSocket(url)
 
   ws.onopen = () => {
     console.log('chat: ws conectado')
-    // ping a cada 20s para manter conexão viva no Railway
     clearInterval(wsPingTimer)
     wsPingTimer = setInterval(() => {
       if (ws && ws.readyState === WebSocket.OPEN) {
@@ -81,7 +80,7 @@ function conectarWS() {
   ws.onmessage = async (ev) => {
     try {
       const msg = JSON.parse(ev.data)
-      if (msg.tipo === 'ping') return
+      if (msg.tipo === 'ping' || msg.tipo === 'pong') return
       console.log('chat: recebeu', msg.tipo, 'de', msg.de)
       await processarSignal(msg)
     } catch (e) {
