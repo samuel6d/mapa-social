@@ -3,22 +3,24 @@ monkey.patch_all()
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_sock import Sock
-import time, json, logging
+from geventwebsocket import WebSocketServer, WebSocketApplication, Resource
+from geventwebsocket.handler import WebSocketHandler
+import time, json, logging, collections
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app, origins="*")
-sock = Sock(app)
 
 usuarios = {}
 conexoes = {}
 
+# ── HTTP ──────────────────────────────────────────────
+
 @app.route("/")
 def index():
-    return jsonify({"status": "ok", "usuarios": len(usuarios)})
+    return jsonify({"status": "ok", "online": len(conexoes)})
 
 @app.route("/register", methods=["POST"])
 def registrar():
@@ -32,6 +34,7 @@ def registrar():
         "foto":  dados.get("foto", ""),
         "visto": time.time()
     }
+    log.info(f"registrado: {nome}")
     return jsonify({"ok": True})
 
 @app.route("/users", methods=["GET"])
@@ -47,41 +50,61 @@ def sair():
     usuarios.pop(nome, None)
     return jsonify({"ok": True})
 
-@sock.route("/ws/<nome>")
-def websocket(ws, nome):
+# ── WEBSOCKET ─────────────────────────────────────────
+
+@app.route("/ws/<nome>")
+def websocket(nome):
+    ws = request.environ.get("wsgi.websocket")
+    if not ws:
+        return "WebSocket necessario", 400
+
     nome = nome.strip()
     conexoes[nome] = ws
-    log.info(f"conectou: {nome}")
+    log.info(f"ws conectou: {nome} | online: {list(conexoes.keys())}")
+
     try:
-        while True:
-            msg = ws.receive(timeout=30)
+        while not ws.closed:
+            msg = ws.receive()
             if msg is None:
-                try:
-                    ws.send(json.dumps({"tipo": "ping"}))
-                    continue
-                except:
-                    break
+                break
+
             try:
                 dados   = json.loads(msg)
                 tipo    = dados.get("tipo", "")
                 destino = dados.get("para", "").strip()
-            except:
+            except Exception:
                 continue
+
             if tipo == "ping":
                 continue
+
             log.info(f"sinal: {nome} -> {destino} [{tipo}]")
+
             if destino in conexoes:
                 try:
                     conexoes[destino].send(msg)
-                except:
+                    log.info(f"repassado para: {destino}")
+                except Exception as e:
+                    log.warning(f"erro ao repassar: {e}")
                     conexoes.pop(destino, None)
             else:
-                log.warning(f"destino nao encontrado: {destino} | online: {list(conexoes.keys())}")
+                log.warning(
+                    f"destino nao encontrado: '{destino}' "
+                    f"| online: {list(conexoes.keys())}"
+                )
+
     except Exception as e:
-        log.warning(f"ws [{nome}]: {e}")
+        log.warning(f"ws [{nome}] erro: {e}")
     finally:
         conexoes.pop(nome, None)
-        log.info(f"desconectou: {nome}")
+        log.info(f"ws desconectou: {nome}")
+
+    return ""
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, port=5000)
+    server = WebSocketServer(
+        ("0.0.0.0", 5000),
+        Resource(collections.OrderedDict([("/", app)])),
+        handler_class=WebSocketHandler
+    )
+    server.serve_forever()
