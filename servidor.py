@@ -1,11 +1,12 @@
 from gevent import monkey
 monkey.patch_all()
 
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 from geventwebsocket.websocket import WebSocketError
-import time, json, logging
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import time, json, logging, os
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -15,6 +16,8 @@ CORS(app, origins="*")
 
 usuarios = {}
 conexoes = {}
+
+# ── HTTP via Flask ────────────────────────────────────
 
 @app.route("/")
 def index():
@@ -48,21 +51,15 @@ def sair():
     usuarios.pop(nome, None)
     return jsonify({"ok": True})
 
-@app.route("/ws/<nome>")
-def websocket(nome):
-    log.info(f"requisicao recebida em /ws/{nome}")
-    ws = request.environ.get("wsgi.websocket")
-    log.info(f"wsgi.websocket = {ws}")
+# ── WEBSOCKET via geventwebsocket direto ──────────────
 
-    if not ws:
-        return "use WebSocket", 200
-
+def handle_websocket(ws, nome):
     nome = nome.strip()
     conexoes[nome] = ws
     log.info(f"ws conectou: {nome} | online: {list(conexoes.keys())}")
 
     try:
-        while True:
+        while not ws.closed:
             msg = ws.receive()
             if msg is None:
                 break
@@ -82,10 +79,13 @@ def websocket(nome):
                     conexoes[destino].send(msg)
                     log.info(f"repassado para: {destino}")
                 except Exception as e:
-                    log.warning(f"erro: {e}")
+                    log.warning(f"erro ao repassar: {e}")
                     conexoes.pop(destino, None)
             else:
-                log.warning(f"destino '{destino}' nao encontrado | online: {list(conexoes.keys())}")
+                log.warning(
+                    f"destino '{destino}' nao encontrado "
+                    f"| online: {list(conexoes.keys())}"
+                )
     except WebSocketError as e:
         log.warning(f"ws [{nome}] erro: {e}")
     except Exception as e:
@@ -94,4 +94,35 @@ def websocket(nome):
         conexoes.pop(nome, None)
         log.info(f"ws desconectou: {nome}")
 
-    return ""
+# ── ROTEADOR PRINCIPAL ────────────────────────────────
+# Intercepta /ws/* para WebSocket, resto vai para Flask
+
+def application(environ, start_response):
+    path = environ.get("PATH_INFO", "")
+
+    # rota WebSocket
+    if path.startswith("/ws/"):
+        ws = environ.get("wsgi.websocket")
+        if ws:
+            nome = path.replace("/ws/", "")
+            handle_websocket(ws, nome)
+            return []
+        else:
+            # requisição HTTP normal na rota WebSocket
+            start_response("200 OK", [("Content-Type", "text/plain")])
+            return [b"use WebSocket"]
+
+    # todas as outras rotas vão para o Flask
+    return app(environ, start_response)
+
+# ── INICIAR SERVIDOR ──────────────────────────────────
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    log.info(f"iniciando servidor na porta {port}")
+    server = pywsgi.WSGIServer(
+        ("0.0.0.0", port),
+        application,
+        handler_class=WebSocketHandler
+    )
+    server.serve_forever()
