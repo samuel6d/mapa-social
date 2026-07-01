@@ -3,9 +3,9 @@ monkey.patch_all()
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from geventwebsocket import WebSocketServer, WebSocketApplication, Resource
 from geventwebsocket.handler import WebSocketHandler
-import time, json, logging, collections
+from geventwebsocket.websocket import WebSocketError
+import time, json, logging
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -55,37 +55,53 @@ def sair():
 @app.route("/ws/<nome>")
 def websocket(nome):
     ws = request.environ.get("wsgi.websocket")
+
+    # se não for WebSocket, retorna erro
     if not ws:
-        return "WebSocket necessario", 400
+        log.warning(f"requisicao nao-WebSocket para /ws/{nome}")
+        return jsonify({"erro": "WebSocket necessario"}), 400
 
     nome = nome.strip()
     conexoes[nome] = ws
     log.info(f"ws conectou: {nome} | online: {list(conexoes.keys())}")
 
     try:
-        while not ws.closed:
+        while True:
+            # aguarda mensagem do cliente
             msg = ws.receive()
+
+            # None = cliente desconectou
             if msg is None:
                 break
+
+            # ignora mensagens vazias
+            if not msg:
+                continue
 
             try:
                 dados   = json.loads(msg)
                 tipo    = dados.get("tipo", "")
                 destino = dados.get("para", "").strip()
-            except Exception:
+            except json.JSONDecodeError:
                 continue
 
+            # ignora pings
             if tipo == "ping":
+                try:
+                    ws.send(json.dumps({"tipo": "pong"}))
+                except WebSocketError:
+                    break
                 continue
 
             log.info(f"sinal: {nome} -> {destino} [{tipo}]")
 
-            if destino in conexoes:
+            # repassa mensagem para o destinatario
+            if destino and destino in conexoes:
                 try:
                     conexoes[destino].send(msg)
                     log.info(f"repassado para: {destino}")
-                except Exception as e:
-                    log.warning(f"erro ao repassar: {e}")
+                except WebSocketError as e:
+                    log.warning(f"erro ao repassar para {destino}: {e}")
                     conexoes.pop(destino, None)
             else:
                 log.warning(
@@ -93,6 +109,8 @@ def websocket(nome):
                     f"| online: {list(conexoes.keys())}"
                 )
 
+    except WebSocketError as e:
+        log.warning(f"ws [{nome}] WebSocketError: {e}")
     except Exception as e:
         log.warning(f"ws [{nome}] erro: {e}")
     finally:
@@ -100,11 +118,3 @@ def websocket(nome):
         log.info(f"ws desconectou: {nome}")
 
     return ""
-
-if __name__ == "__main__":
-    server = WebSocketServer(
-        ("0.0.0.0", 5000),
-        Resource(collections.OrderedDict([("/", app)])),
-        handler_class=WebSocketHandler
-    )
-    server.serve_forever()
