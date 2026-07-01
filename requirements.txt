@@ -1,7 +1,8 @@
-flask
-flask-cors
-flask-sock
-gunicorn
-eventlet==0.36.1
-python-dotenv
-requests
+flask==3.0.3
+flask-cors==4.0.1
+flask-sock==0.7.0
+gunicorn==21.2.0
+gevent==24.2.1
+gevent-websocket==0.10.1
+python-dotenv==1.0.1
+requests==2.31.0

@@ -1,5 +1,5 @@
-import eventlet
-eventlet.monkey_patch()
+from gevent import monkey
+monkey.patch_all()
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -13,10 +13,8 @@ app = Flask(__name__)
 CORS(app, origins="*")
 sock = Sock(app)
 
-usuarios = {}  # { nome: { x, y, foto, visto } }
-conexoes = {}  # { nome: ws }
-
-# ── HTTP ──────────────────────────────────────────────
+usuarios = {}
+conexoes = {}
 
 @app.route("/")
 def index():
@@ -34,7 +32,6 @@ def registrar():
         "foto":  dados.get("foto", ""),
         "visto": time.time()
     }
-    log.info(f"registrado: {nome}")
     return jsonify({"ok": True})
 
 @app.route("/users", methods=["GET"])
@@ -48,59 +45,43 @@ def sair():
     dados = request.get_json()
     nome  = dados.get("nome", "") if dados else ""
     usuarios.pop(nome, None)
-    log.info(f"saiu: {nome}")
     return jsonify({"ok": True})
-
-# ── WEBSOCKET ─────────────────────────────────────────
 
 @sock.route("/ws/<nome>")
 def websocket(ws, nome):
     nome = nome.strip()
     conexoes[nome] = ws
-    log.info(f"ws conectou: {nome} | online: {list(conexoes.keys())}")
-
+    log.info(f"conectou: {nome}")
     try:
         while True:
             msg = ws.receive(timeout=30)
-
-            # timeout — envia ping para manter vivo
             if msg is None:
                 try:
                     ws.send(json.dumps({"tipo": "ping"}))
                     continue
-                except Exception:
+                except:
                     break
-
             try:
                 dados   = json.loads(msg)
                 tipo    = dados.get("tipo", "")
                 destino = dados.get("para", "").strip()
-            except Exception:
+            except:
                 continue
-
             if tipo == "ping":
                 continue
-
-            log.info(f"sinal: {nome} → {destino} [{tipo}]")
-
-            if destino and destino in conexoes:
+            log.info(f"sinal: {nome} -> {destino} [{tipo}]")
+            if destino in conexoes:
                 try:
                     conexoes[destino].send(msg)
-                    log.info(f"repassado para: {destino}")
-                except Exception as e:
-                    log.warning(f"erro repassando para {destino}: {e}")
+                except:
                     conexoes.pop(destino, None)
             else:
-                log.warning(
-                    f"destino nao encontrado: '{destino}' "
-                    f"| online: {list(conexoes.keys())}"
-                )
-
+                log.warning(f"destino nao encontrado: {destino} | online: {list(conexoes.keys())}")
     except Exception as e:
-        log.warning(f"ws [{nome}] encerrou: {e}")
+        log.warning(f"ws [{nome}]: {e}")
     finally:
         conexoes.pop(nome, None)
-        log.info(f"ws desconectou: {nome}")
+        log.info(f"desconectou: {nome}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=5000)
