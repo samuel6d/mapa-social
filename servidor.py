@@ -16,8 +16,6 @@ CORS(app, origins="*")
 usuarios = {}
 conexoes = {}
 
-# ── HTTP ──────────────────────────────────────────────
-
 @app.route("/")
 def index():
     return jsonify({"status": "ok", "online": len(conexoes)})
@@ -50,17 +48,13 @@ def sair():
     usuarios.pop(nome, None)
     return jsonify({"ok": True})
 
-# ── WEBSOCKET ─────────────────────────────────────────
-# O geventwebsocket injeta o objeto ws em request.environ["wsgi.websocket"]
-# apenas quando a requisição é um upgrade WebSocket real.
-# Quando acessado via HTTP normal, ws será None.
-
 @app.route("/ws/<nome>")
 def websocket(nome):
+    log.info(f"requisicao recebida em /ws/{nome}")
     ws = request.environ.get("wsgi.websocket")
+    log.info(f"wsgi.websocket = {ws}")
 
     if not ws:
-        # requisição HTTP normal — não é WebSocket
         return "use WebSocket", 200
 
     nome = nome.strip()
@@ -70,39 +64,28 @@ def websocket(nome):
     try:
         while True:
             msg = ws.receive()
-
             if msg is None:
-                # cliente desconectou normalmente
                 break
-
             if not msg.strip():
                 continue
-
             try:
                 dados   = json.loads(msg)
                 tipo    = dados.get("tipo", "")
                 destino = dados.get("para", "").strip()
             except json.JSONDecodeError:
                 continue
-
             if tipo == "ping":
                 continue
-
             log.info(f"sinal: {nome} -> {destino} [{tipo}]")
-
             if destino and destino in conexoes:
                 try:
                     conexoes[destino].send(msg)
                     log.info(f"repassado para: {destino}")
                 except Exception as e:
-                    log.warning(f"erro ao repassar para {destino}: {e}")
+                    log.warning(f"erro: {e}")
                     conexoes.pop(destino, None)
             else:
-                log.warning(
-                    f"destino: '{destino}' nao encontrado "
-                    f"| online: {list(conexoes.keys())}"
-                )
-
+                log.warning(f"destino '{destino}' nao encontrado | online: {list(conexoes.keys())}")
     except WebSocketError as e:
         log.warning(f"ws [{nome}] erro: {e}")
     except Exception as e:
