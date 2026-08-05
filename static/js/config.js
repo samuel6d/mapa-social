@@ -12,9 +12,9 @@ const CONFIG = {
   SERVIDOR: 'https://mapa-social.up.railway.app',
 }
 
-// inicializa o cliente Supabase globalmente
-const { createClient } = supabase
-const db = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY)
+window.SERVIDOR = CONFIG.SERVIDOR;
 
-// expõe SERVIDOR como variável global para os outros scripts
-const SERVIDOR = CONFIG.SERVIDOR
+window.db = supabase.createClient(
+  CONFIG.SUPABASE_URL,
+  CONFIG.SUPABASE_KEY
+)
