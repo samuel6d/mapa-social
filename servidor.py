@@ -1,12 +1,17 @@
 from gevent import monkey
+
 monkey.patch_all()
 
+import json
+import logging
+import os
+import time
+
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 from geventwebsocket.websocket import WebSocketError
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import time, json, logging, os
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -19,9 +24,11 @@ conexoes = {}
 
 # ── HTTP via Flask ────────────────────────────────────
 
+
 @app.route("/")
 def index():
     return jsonify({"status": "ok", "online": len(conexoes)})
+
 
 @app.route("/register", methods=["POST"])
 def registrar():
@@ -30,28 +37,32 @@ def registrar():
         return jsonify({"erro": "nome obrigatorio"}), 400
     nome = dados["nome"].strip()
     usuarios[nome] = {
-        "x":     dados.get("x", 2500),
-        "y":     dados.get("y", 2500),
-        "foto":  dados.get("foto", ""),
-        "visto": time.time()
+        "x": dados.get("x", 2500),
+        "y": dados.get("y", 2500),
+        "foto": dados.get("foto", ""),
+        "visto": time.time(),
     }
     log.info(f"registrado: {nome}")
     return jsonify({"ok": True})
 
+
 @app.route("/users", methods=["GET"])
 def listar():
-    agora  = time.time()
+    agora = time.time()
     ativos = {n: i for n, i in usuarios.items() if agora - i["visto"] < 120}
     return jsonify(ativos)
+
 
 @app.route("/leave", methods=["DELETE"])
 def sair():
     dados = request.get_json()
-    nome  = dados.get("nome", "") if dados else ""
+    nome = dados.get("nome", "") if dados else ""
     usuarios.pop(nome, None)
     return jsonify({"ok": True})
 
+
 # ── WEBSOCKET via geventwebsocket direto ──────────────
+
 
 def handle_websocket(ws, nome):
     nome = nome.strip()
@@ -66,8 +77,8 @@ def handle_websocket(ws, nome):
             if not msg.strip():
                 continue
             try:
-                dados   = json.loads(msg)
-                tipo    = dados.get("tipo", "")
+                dados = json.loads(msg)
+                tipo = dados.get("tipo", "")
                 destino = dados.get("para", "").strip()
             except json.JSONDecodeError:
                 continue
@@ -94,8 +105,10 @@ def handle_websocket(ws, nome):
         conexoes.pop(nome, None)
         log.info(f"ws desconectou: {nome}")
 
+
 # ── ROTEADOR PRINCIPAL ────────────────────────────────
 # Intercepta /ws/* para WebSocket, resto vai para Flask
+
 
 def application(environ, start_response):
     path = environ.get("PATH_INFO", "")
@@ -115,14 +128,13 @@ def application(environ, start_response):
     # todas as outras rotas vão para o Flask
     return app(environ, start_response)
 
+
 # ── INICIAR SERVIDOR ──────────────────────────────────
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", "5000"))
     log.info(f"iniciando servidor na porta {port}")
     server = pywsgi.WSGIServer(
-        ("0.0.0.0", port),
-        application,
-        handler_class=WebSocketHandler
+        ("0.0.0.0", port), application, handler_class=WebSocketHandler
     )
     server.serve_forever()

@@ -1,8 +1,3 @@
-// ─────────────────────────────────────────────────────
-// config.js — configuração centralizada
-// Troque apenas os valores abaixo
-// ─────────────────────────────────────────────────────
-
 const CONFIG = {
   // Supabase — painel em supabase.com → Project Settings → API
   SUPABASE_URL: 'https://fkjllotmvxsrawzavchd.supabase.co',
@@ -12,9 +7,6 @@ const CONFIG = {
   SERVIDOR: 'https://mapa-social.up.railway.app',
 }
 
-window.SERVIDOR = CONFIG.SERVIDOR;
-
-window.db = supabase.createClient(
-  CONFIG.SUPABASE_URL,
-  CONFIG.SUPABASE_KEY
-)
+const { createClient } = supabase
+const db = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY)
+const SERVIDOR = CONFIG.SERVIDOR
